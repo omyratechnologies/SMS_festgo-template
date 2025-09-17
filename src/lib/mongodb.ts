@@ -1,18 +1,18 @@
 // lib/mongodb.ts
 import { MongoClient, Db } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "";
+const uri = process.env.MONGODB_URI;
 const options = {};
-
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
 
 if (!uri) {
   throw new Error("Please add your MongoDB URI to .env.local");
 }
 
+let client: MongoClient;
+let clientPromise: Promise<MongoClient>;
+
 declare global {
-  // allow global var reuse in dev (Next.js hot reload)
+  // Allow global var reuse in dev (Next.js hot reload)
   // eslint-disable-next-line no-var
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
@@ -28,11 +28,19 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client.connect();
 }
 
+/**
+ * Connect to MongoDB and return client and database.
+ * Uses the database specified in the URI; falls back to "test".
+ */
 export async function connectToDatabase(): Promise<{
   db: Db;
   client: MongoClient;
 }> {
   const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DB || "test"); // replace "test" with your DB name
+
+  // Use the database from the URI if specified, otherwise fallback
+  const dbName = client.db().databaseName || "test";
+  const db = client.db(dbName);
+
   return { db, client };
 }
