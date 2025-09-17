@@ -13,7 +13,7 @@ if (!SMS_USERNAME || !SMS_API_KEY || !SMS_SENDER || !SMS_TEMPLATE_ID) {
 
 export function normalizePhoneNumber(raw: string): string {
   if (!raw) return raw;
-  let s = raw.replace(/\s+/g, "").trim();
+  const s = raw.replace(/\s+/g, "").trim();
   if (s.startsWith("+91")) return s.slice(1);
   if (/^\d{10}$/.test(s)) return `91${s}`;
   if (/^91\d{10}$/.test(s)) return s;
@@ -55,11 +55,12 @@ export async function sendSMS(
 
     if (typeof data === "string") {
       // Check for various success indicators in string responses
-      success = data.includes("MessageId") || 
-                data.includes("success") || 
-                data.includes("campid") ||
-                data.includes("{'campid':");
-      
+      success =
+        data.includes("MessageId") ||
+        data.includes("success") ||
+        data.includes("campid") ||
+        data.includes("{'campid':");
+
       // Try to parse if it looks like a JSON string
       if (data.includes("{'campid':") || data.includes('{"campid":')) {
         try {
@@ -86,21 +87,21 @@ export async function sendSMS(
         data.ErrorCode === "000" ||
         data.ErrorMessage?.toLowerCase().includes("success") ||
         data.campid !== undefined; // Check for campid in object responses
-      
+
       if (data.campid) {
         campid = data.campid;
       }
     }
 
-    const result: SendSMSResult = { 
-      ok: success, 
-      providerResponse: data 
+    const result: SendSMSResult = {
+      ok: success,
+      providerResponse: data,
     };
-    
+
     if (campid) {
       result.campid = campid;
     }
-    
+
     return result;
   } catch (err) {
     return {

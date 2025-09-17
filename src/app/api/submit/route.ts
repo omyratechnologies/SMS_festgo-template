@@ -27,7 +27,6 @@ interface Submission {
 }
 
 function generateRegNo(seq: string): string {
-  // ✅ Shorter, friendly reg number
   return "RBG-" + seq.slice(-5).toUpperCase();
 }
 
@@ -48,11 +47,14 @@ export async function POST(req: NextRequest) {
 
     const normalizedPhone = normalizePhoneNumber(String(phone).trim());
 
-    // ✅ Check if SMS was already sent for this phone
-    const alreadySent = await collection.findOne({
-      phone: normalizedPhone,
-      "smsStatus.ok": true,
-    });
+    // ✅ Check if phone already exists (any previous submission)
+    const existing = await collection.findOne({ phone: normalizedPhone });
+    if (existing) {
+      return NextResponse.json({
+        error: "Phone already registered",
+        alreadyRegistered: true,
+      });
+    }
 
     const doc: Submission = {
       name: String(name).trim(),
@@ -74,28 +76,17 @@ export async function POST(req: NextRequest) {
     // Generate reg number from ObjectId
     const regNo = generateRegNo(insertedId);
 
-    let smsStatus: Submission["smsStatus"];
+    // ✅ Send SMS
+    const message = `Dear ${name},your Reg no:${regNo}.You are registered for FESTGO EVENTS- (RBG PALNADU CHAPTER LAUNCH) 21st Sep, 9:30AM @ SNR Convention, NRT. Lunch follows."RBG TEAM PALNADU" Location-https://stiny.in/FESTGO/loc`;
+    const smsRes = await sendSMS(normalizedPhone, message);
+    const smsStatus = {
+      ok: smsRes.ok,
+      response: smsRes.providerResponse ?? smsRes.error,
+      sentAt: new Date(),
+      ...(smsRes.campid && { campid: smsRes.campid }),
+    };
 
-    if (!alreadySent) {
-      // ✅ Use exact DLT template matching the approved format with correct URL
-      const message = `Dear ${name},your Reg no:${regNo}.You are registered for FESTGO EVENTS- (RBG PALNADU CHAPTER LAUNCH) 21st Sep, 9:30AM @ SNR Convention, NRT. Lunch follows."RBG TEAM PALNADU" Location-https://stiny.in/FESTGO/loc`;
-
-      const smsRes = await sendSMS(normalizedPhone, message);
-      smsStatus = {
-        ok: smsRes.ok,
-        response: smsRes.providerResponse ?? smsRes.error,
-        sentAt: new Date(),
-        ...(smsRes.campid && { campid: smsRes.campid }), // Include campid if available
-      };
-    } else {
-      smsStatus = {
-        ok: false,
-        response: "SMS skipped (already sent for this phone)",
-        sentAt: new Date(),
-      };
-    }
-
-    // ✅ update document with SMS status and regNo
+    // Update the document with SMS status and regNo
     await collection.updateOne(
       { _id: result.insertedId },
       { $set: { smsStatus, regNo } }

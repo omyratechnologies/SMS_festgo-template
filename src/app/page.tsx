@@ -17,6 +17,8 @@ type FormState = {
   rating: number;
 };
 
+type SubmittedState = false | "new" | "already";
+
 export default function HomePage() {
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -28,7 +30,7 @@ export default function HomePage() {
     rating: 0,
   });
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState<SubmittedState>(false);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -73,9 +75,16 @@ export default function HomePage() {
           rating: form.rating,
         }),
       });
+
       const data = await res.json();
+
       if (!res.ok) throw new Error(data?.error || "Failed to save.");
-      setSubmitted(true);
+
+      if (data.alreadyRegistered) {
+        setSubmitted("already");
+      } else {
+        setSubmitted("new");
+      }
     } catch (err) {
       if (err instanceof Error) {
         toast.error(err.message);
@@ -87,37 +96,12 @@ export default function HomePage() {
     }
   }
 
-  if (submitted) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-green-400 to-green-600 text-white">
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        >
-          <FaCheckCircle className="text-7xl mb-6 drop-shadow-lg" />
-        </motion.div>
+  if (submitted === "new") {
+    return <ThankYouMessage message="Thanks for submitting!" />;
+  }
 
-        <motion.h1
-          className="text-3xl font-bold mb-4"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.7 }}
-        >
-          Thanks for submitting!
-        </motion.h1>
-
-        <motion.a
-          href="/"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8, duration: 0.8 }}
-          className="w-full max-w-xs text-center py-3 bg-white text-green-700 font-semibold rounded-full shadow-lg hover:bg-gray-100 transition"
-        >
-          Back Home
-        </motion.a>
-      </div>
-    );
+  if (submitted === "already") {
+    return <ThankYouMessage message="You have already registered!" />;
   }
 
   return (
@@ -316,6 +300,42 @@ function Stars({
           </svg>
         );
       })}
+    </div>
+  );
+}
+
+/* Thank You / Already Registered Message */
+/* Thank You / Already Registered Message */
+function ThankYouMessage({ message }: { message: string }) {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-400 to-green-600 text-white">
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="flex flex-col items-center text-center px-4"
+      >
+        <FaCheckCircle className="text-7xl mb-6 drop-shadow-lg" />
+
+        <motion.h1
+          className="text-3xl font-bold mb-6"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.7 }}
+        >
+          {message}
+        </motion.h1>
+
+        <motion.a
+          href="/"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.8 }}
+          className="w-full max-w-xs text-center py-3 bg-white text-green-700 font-semibold rounded-full shadow-lg hover:bg-gray-100 transition"
+        >
+          Back Home
+        </motion.a>
+      </motion.div>
     </div>
   );
 }
