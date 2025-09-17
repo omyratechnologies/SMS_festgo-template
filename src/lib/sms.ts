@@ -24,6 +24,7 @@ export type SendSMSResult = {
   ok: boolean;
   providerResponse?: unknown;
   error?: string;
+  campid?: string; // Add campid for reference
 };
 
 export async function sendSMS(
@@ -50,17 +51,57 @@ export async function sendSMS(
     console.log("📨 SMS API response:", data); // <-- log response for debugging
 
     let success = false;
+    let campid: string | undefined;
 
     if (typeof data === "string") {
-      success = data.includes("MessageId") || data.includes("success");
+      // Check for various success indicators in string responses
+      success = data.includes("MessageId") || 
+                data.includes("success") || 
+                data.includes("campid") ||
+                data.includes("{'campid':");
+      
+      // Try to parse if it looks like a JSON string
+      if (data.includes("{'campid':") || data.includes('{"campid":')) {
+        try {
+          // Handle Python-style single quotes by converting to double quotes
+          const jsonStr = data.replace(/'/g, '"');
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.campid) {
+            success = true;
+            campid = parsed.campid;
+          }
+        } catch (e) {
+          // If parsing fails, fall back to string check
+          success = data.includes("campid");
+          // Try to extract campid with regex as fallback
+          const campidMatch = data.match(/campid['"]:['"]([^'"]+)['"]/);
+          if (campidMatch) {
+            campid = campidMatch[1];
+          }
+        }
+      }
     } else if (typeof data === "object" && data !== null) {
       // JSON style response
       success =
         data.ErrorCode === "000" ||
-        data.ErrorMessage?.toLowerCase().includes("success");
+        data.ErrorMessage?.toLowerCase().includes("success") ||
+        data.campid !== undefined; // Check for campid in object responses
+      
+      if (data.campid) {
+        campid = data.campid;
+      }
     }
 
-    return { ok: success, providerResponse: data };
+    const result: SendSMSResult = { 
+      ok: success, 
+      providerResponse: data 
+    };
+    
+    if (campid) {
+      result.campid = campid;
+    }
+    
+    return result;
   } catch (err) {
     return {
       ok: false,

@@ -21,6 +21,7 @@ interface Submission {
     ok: boolean;
     response?: unknown;
     sentAt: Date;
+    campid?: string; // Add campid for tracking
   };
   regNo?: string; // ✅ stored reg number for DLT
 }
@@ -76,14 +77,15 @@ export async function POST(req: NextRequest) {
     let smsStatus: Submission["smsStatus"];
 
     if (!alreadySent) {
-      // ✅ Use exact DLT template
-      const message = `Dear Member, your reg no:${regNo}.You are registered for FESTGO EVENTS -RBG Palnadu Chapter Launch 21st Sep, 9:30AM @ SNR Convention, NRT. Lunch follows."RBG TEAM palnadu"`;
+      // ✅ Use exact DLT template matching the approved format with correct URL
+      const message = `Dear ${name},your Reg no:${regNo}.You are registered for FESTGO EVENTS- (RBG PALNADU CHAPTER LAUNCH) 21st Sep, 9:30AM @ SNR Convention, NRT. Lunch follows."RBG TEAM PALNADU" Location-https://stiny.in/FESTGO/loc`;
 
       const smsRes = await sendSMS(normalizedPhone, message);
       smsStatus = {
         ok: smsRes.ok,
         response: smsRes.providerResponse ?? smsRes.error,
         sentAt: new Date(),
+        ...(smsRes.campid && { campid: smsRes.campid }), // Include campid if available
       };
     } else {
       smsStatus = {
